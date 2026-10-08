@@ -238,18 +238,6 @@ cd graduation_project
 
 졸업 프로젝트의 구현 범위는 여행 미션 탐색·인증·보상, 개인화 추천, 다국어 UI와 관리자 검수입니다. 서비스 운영 단계에서는 실제 여행 사진과 이용 로그를 통한 모델 보정, 서버 측 포인트·보상 검증, 위치 조작 탐지와 사용자 흐름 테스트 확대가 필요합니다.
 
-## 프로젝트 포스터
-
-서비스 소개, 핵심 기술, 주요 화면과 시스템 아키텍처를 한 장으로 정리한 졸업 프로젝트 포스터입니다.
-
-<p align="center">
-  <a href="docs/project-poster.pdf">
-    <img src="docs/project-poster.png" width="650" alt="Seoul Quest 졸업 프로젝트 최종 포스터" />
-  </a>
-</p>
-
-[포스터 PDF 보기](docs/project-poster.pdf) · [시스템 아키텍처 원본 이미지](docs/system-architecture.png)
-
 ## 관련 문서
 
 - [설계 및 실험 기록](docs/report.md)
