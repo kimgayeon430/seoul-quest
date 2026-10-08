@@ -94,6 +94,8 @@ Seoul Quest는 장소를 둘러보는 여행에 구체적인 활동과 달성 �
 
 ## 시스템 구성
 
+![Seoul Quest 시스템 아키텍처 — Android 앱, 인증·데이터 저장, 지도 및 온디바이스 AI 구성](docs/system-architecture.png)
+
 Android 앱은 Firebase로 계정과 미션 데이터를 관리하고, Supabase Storage에 인증 사진을 저장합니다. 사진 분류와 참조 이미지 유사도 계산은 ONNX Runtime으로 기기 내에서 수행합니다.
 
 | 구성 요소 | 역할 |
@@ -235,6 +237,18 @@ cd graduation_project
 ## 적용 범위와 확장 방향
 
 졸업 프로젝트의 구현 범위는 여행 미션 탐색·인증·보상, 개인화 추천, 다국어 UI와 관리자 검수입니다. 서비스 운영 단계에서는 실제 여행 사진과 이용 로그를 통한 모델 보정, 서버 측 포인트·보상 검증, 위치 조작 탐지와 사용자 흐름 테스트 확대가 필요합니다.
+
+## 프로젝트 포스터
+
+서비스 소개, 핵심 기술, 주요 화면과 시스템 아키텍처를 한 장으로 정리한 졸업 프로젝트 포스터입니다.
+
+<p align="center">
+  <a href="docs/project-poster.pdf">
+    <img src="docs/project-poster.png" width="650" alt="Seoul Quest 졸업 프로젝트 최종 포스터" />
+  </a>
+</p>
+
+[포스터 PDF 보기](docs/project-poster.pdf) · [시스템 아키텍처 원본 이미지](docs/system-architecture.png)
 
 ## 관련 문서
 
