@@ -185,8 +185,8 @@ firestore.rules             # 데이터 접근 규칙
 ### 프로젝트 설정
 
 ```bash
-git clone https://github.com/kimgayeon430/graduation_project.git
-cd graduation_project
+git clone https://github.com/kimgayeon430/seoul-quest.git
+cd seoul-quest
 ```
 
 1. Android Studio에서 프로젝트를 엽니다.
