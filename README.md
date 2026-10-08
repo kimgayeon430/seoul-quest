@@ -5,6 +5,33 @@
 숙명여자대학교 인공지능공학부 졸업 프로젝트로 개발한 Android 앱입니다.  
 사용자는 여행지 미션을 탐색하고 단계별 인증을 완료해 포인트를 획득할 수 있으며, 관리자는 앱 안에서 미션과 사용자 권한을 관리할 수 있습니다.
 
+## 서비스 화면
+
+앱의 보라색 테마를 적용한 실제 실행 화면입니다. 미션 탐색부터 완료 보상과 다음 미션 추천까지의 흐름을 보여줍니다.
+
+<table>
+  <tr>
+    <th>홈 · 맞춤 미션 추천</th>
+    <th>카테고리별 미션 탐색</th>
+    <th>지도에서 여행지 확인</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/home.jpg" alt="Seoul Quest 홈 화면과 추천 미션" width="220"></td>
+    <td align="center"><img src="docs/missions.jpg" alt="카테고리별 미션 목록" width="220"></td>
+    <td align="center"><img src="docs/map.jpg" alt="네이버 지도 위에 표시된 여행 미션" width="220"></td>
+  </tr>
+  <tr>
+    <th>미션 완료 · 포인트 보상</th>
+    <th>다음 미션 추천</th>
+    <th>다국어 지원 · 일본어 화면</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/completed.jpg" alt="미션 완료 후 포인트와 레벨 진행률 표시" width="220"></td>
+    <td align="center"><img src="docs/next-mission.jpg" alt="사진 인증 결과와 다음 추천 미션 카드" width="220"></td>
+    <td align="center"><img src="docs/language.jpg" alt="일본어로 전환한 Seoul Quest 홈 화면" width="220"></td>
+  </tr>
+</table>
+
 ## 주요 기능
 
 ### 사용자
@@ -440,3 +467,4 @@ python export_onnx.py --model outputs/final --out ../app/src/main/assets/photo_v
 - 서버 사이드 포인트 검증(Cloud Functions), Supabase Storage 업로드 서버 검증 — 여행 레벨·배지 카운터도 포인트와 같은 구조라 같은 서버 검증 작업으로 함께 다룰 예정
 - 다음 미션 추천 카드에 사용자 실시간 위치 기반 거리 표시 추가
 - Robolectric 기반 ViewModel/Compose UI 테스트와 Repository 계약 테스트 추가
+
