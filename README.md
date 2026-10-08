@@ -1,6 +1,6 @@
 # Seoul Quest
 
-> 서울을 탐험하고, 미션으로 여행을 기록하다.
+> 미션을 따라 걷다 보면 서울 여행이 완성됩니다.
 
 **Seoul Quest**는 여행지 미션을 수행하고 GPS와 사진으로 인증해 포인트·레벨·배지를 얻는 Android 여행 앱입니다. 여행 취향에 맞는 미션 추천과 지도 탐색, 온디바이스 AI 사진 인증을 연결해 여행의 발견부터 성취까지 하나의 흐름으로 제공합니다.
 
@@ -8,7 +8,8 @@
 
 | 프로젝트 | 정보 |
 | --- | --- |
-| 개발자 | 김가연 · 강규린 |
+| 팀 | SOOK-GO |
+| 개발자 | 강규린 · 김가연 |
 | 지도교수 | 김철연 |
 | 개발 기간 | 2026.03–2026.09 |
 | 플랫폼 | Android 8.0 이상 |
@@ -102,7 +103,7 @@ Seoul Quest는 장소를 둘러보는 여행에 구체적인 활동과 달성 �
 
 ## 시스템 구성
 
-![Seoul Quest 시스템 아키텍처 — Android 앱, 인증·데이터 저장, 지도 및 온디바이스 AI 구성](docs/system-architecture.png)
+![Seoul Quest 시스템 아키텍처 — Android 앱, 인증·데이터 저장, 지도 및 온디바이스 AI 구성](docs/system-architecture-final.png)
 
 Android 앱은 Firebase로 계정과 미션 데이터를 관리하고, Supabase Storage에 인증 사진을 저장합니다. 사진 분류와 참조 이미지 유사도 계산은 ONNX Runtime으로 기기 내에서 수행합니다.
 
@@ -121,7 +122,13 @@ ViewModel·Repository·Domain 분리는 미션 수행 기능에 적용했습니�
 
 ## AI 설계 및 평가
 
+![데이터 구축, 모델 학습, ONNX 변환 및 앱 배포 과정](docs/model-training-flow.png)
+
 ### 온디바이스 사진 인증
+
+<p align="center">
+  <img src="docs/photo-verification-flow.png" width="420" alt="사진 촬영부터 MobileViT 분류, CLIP 비교와 판정까지의 인증 과정" />
+</p>
 
 `apple/mobilevit-small`을 여행 미션 사진으로 파인튜닝해 **투어·맛집·체험·쇼핑·무효**의 5개 클래스를 분류합니다. 모델은 ONNX 형식으로 앱에 포함하며, 촬영본을 기기에서 분석합니다. 참조 사진과 촬영본의 CLIP 임베딩 유사도를 보조 신호로 사용해 미션 대상과의 일치 여부를 판정에 반영합니다.
 
@@ -252,3 +259,4 @@ cd seoul-quest
 - [사진 인증 모델과 학습 파이프라인](ml/README.md)
 - [추천 모델과 평가 방법](ml/reco/README.md)
 - [사진 인증 평가 설정](ml/thresholds.json)
+
