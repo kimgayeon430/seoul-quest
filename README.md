@@ -14,6 +14,14 @@
 | 플랫폼 | Android 8.0 이상 |
 | 지원 언어 | 한국어 · English · 日本語 |
 
+## 앱 다운로드
+
+[**SeoulQuest.apk 내려받기 (v1.0)**](https://github.com/kimgayeon430/seoul-quest/releases/latest/download/SeoulQuest.apk) · [릴리스 페이지](https://github.com/kimgayeon430/seoul-quest/releases/latest)
+
+- Android 8.0(API 26) 이상 기기에서 설치할 수 있으며, 파일 크기는 약 163MB입니다.
+- 디버그 서명으로 배포하는 데모 APK입니다. 설치할 때 **출처를 알 수 없는 앱 설치**를 허용해야 하고, Play Protect 경고가 표시될 수 있습니다.
+- 위치 인증과 사진 인증을 사용하려면 위치와 카메라 권한을 허용해야 합니다.
+
 ## 프로젝트 소개
 
 Seoul Quest는 장소를 둘러보는 여행에 구체적인 활동과 달성 목표를 더합니다. 사용자는 투어·맛집·체험·쇼핑 중 관심 분야를 선택하고, 추천 미션이나 지도에서 다음 목적지를 찾습니다. 현장 방문과 사진 인증을 완료하면 보상을 받으며, 여행 레벨과 배지를 통해 활동을 확인할 수 있습니다.
@@ -42,7 +50,7 @@ Seoul Quest는 장소를 둘러보는 여행에 구체적인 활동과 달성 �
   </tr>
   <tr>
     <td align="center"><img src="docs/completed.jpg" alt="미션 완료 후 포인트와 레벨 진행률 표시" width="220"></td>
-    <td align="center"><img src="docs/next-mission.jpg" alt="사진 인증 결과와 다음 추천 미션 카드" width="220"></td>
+    <td align="center"><img src="docs/next-mission.jpg" alt="미션 완료 후 다음 추천 미션 카드" width="220"></td>
     <td align="center"><img src="docs/language.jpg" alt="일본어로 전환한 Seoul Quest 홈 화면" width="220"></td>
   </tr>
 </table>
