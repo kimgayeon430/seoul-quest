@@ -1,4 +1,4 @@
-# ML (Travel Mission)
+# ML (Seoul Quest)
 
 앱의 두 AI 기능을 위한 학습·평가 파이프라인. Android 빌드와 분리돼 있다.
 
