@@ -74,7 +74,8 @@ class MissionPerformViewModel(
                     missionCategory = info.category,
                     missionPoints = info.points,
                     missionLocation = info.location,
-                    missionReferenceEmbeddings = info.photoEmbeddings
+                    missionReferenceEmbeddings = info.photoEmbeddings,
+                    missionTextAnchors = info.textAnchors
                 )
             },
             onError = {}
@@ -241,6 +242,7 @@ class MissionPerformViewModel(
             photoVerificationConfig = photoVerificationConfig,
             referenceEmbeddings = state.missionReferenceEmbeddings
                 .filter { it.isNotEmpty() }.map { it.toFloatArray() },
+            textAnchors = state.missionTextAnchors,
             onResult = { result ->
                 when {
                     // 이미 완료 처리된 미션에 재제출된 경우(중복 제출)는 새 판정이 아니므로

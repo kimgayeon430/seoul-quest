@@ -65,6 +65,8 @@ data class MissionPerformUiState(
     val missionDocId: String? = null,
     /** 미션 대표 이미지(들) 임베딩. 있으면 사진 인증에서 촬영본과의 유사도(최대값)를 결합한다(6.7, 6.7.8). */
     val missionReferenceEmbeddings: List<List<Float>> = emptyList(),
+    /** 미션 설명 텍스트 임베딩. 있으면 사진 인증에서 촬영본과의 텍스트 일치도를 결합한다. */
+    val missionTextAnchors: PhotoVerification.TextAnchors? = null,
 
     val isVerifying: Boolean = false,
     val isUploading: Boolean = false,

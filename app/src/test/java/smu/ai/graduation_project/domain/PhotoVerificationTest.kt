@@ -215,4 +215,112 @@ class PhotoVerificationTest {
         val norm = kotlin.math.sqrt((n[0] * n[0] + n[1] * n[1]).toDouble())
         assertTrue(kotlin.math.abs(norm - 1.0) < 1e-6)
     }
+
+    // ---- 미션 설명 텍스트 일치도 ----
+
+    // 2차원 단위 벡터로 텍스트 앵커를 만든다. 촬영본 (1,0) 기준 미션 문구 쪽이 가까우면 확률이 높다.
+    private val photo = floatArrayOf(1f, 0f)
+    private fun anchors(posCos: Float, negCos: Float, negCount: Int = 10) = PhotoVerification.TextAnchors(
+        positives = listOf(unit(posCos)),
+        negatives = List(negCount) { unit(negCos) },
+    )
+    private fun unit(cos: Float) = floatArrayOf(cos, kotlin.math.sqrt(1f - cos * cos))
+
+    @Test
+    fun textMatchProbMatchesSoftmax() {
+        // logit 차이 = 100 × (0.30 - 0.25) = 5 → p = e^5 / (e^5 + 10)
+        val p = PhotoEmbedding.textMatchProbOrNull(photo, anchors(0.30f, 0.25f))!!
+        val e5 = kotlin.math.exp(5.0)
+        assertEquals(e5 / (e5 + 10), p, 1e-4)
+    }
+
+    @Test
+    fun textMatchProbUsesBestPositiveOnly() {
+        // 미션 문구를 여러 개 넣어도 확률이 부풀지 않는다(최대 logit 하나만 사용).
+        val one = PhotoEmbedding.textMatchProbOrNull(photo, anchors(0.30f, 0.25f))!!
+        val many = PhotoEmbedding.textMatchProbOrNull(
+            photo,
+            PhotoVerification.TextAnchors(List(5) { unit(0.30f) }, List(10) { unit(0.25f) })
+        )!!
+        assertEquals(one, many, 1e-9)
+    }
+
+    @Test
+    fun textMatchProbNullWithoutNegativesOrEmbedding() {
+        assertNull(PhotoEmbedding.textMatchProbOrNull(photo, PhotoVerification.TextAnchors(listOf(photo), emptyList())))
+        assertNull(PhotoEmbedding.textMatchProbOrNull(null, anchors(0.30f, 0.25f)))
+        assertNull(PhotoEmbedding.textMatchProbOrNull(photo, null))
+    }
+
+    @Test
+    fun highCategoryTextMismatchIsDowngradedToReview() {
+        // 대표 이미지 없이 텍스트만 있는 미션: 맛집 사진은 확실하지만 이 미션 문구와 안 맞음 → 다른 식당 의심.
+        val r = PhotoVerification.verify(
+            "맛집", classification(photo, "맛집" to 0.90, PhotoVerification.INVALID_LABEL to 0.02),
+            textAnchors = anchors(0.20f, 0.30f)
+        )
+        assertEquals(PhotoVerification.Verdict.NEEDS_REVIEW, r.verdict)
+        assertTrue(r.textMatch!! < PhotoVerificationConfig.DEFAULT.textMatchSuspectThreshold)
+        assertNull(r.similarity)
+    }
+
+    @Test
+    fun highCategoryTextMatchPasses() {
+        val r = PhotoVerification.verify(
+            "맛집", classification(photo, "맛집" to 0.90, PhotoVerification.INVALID_LABEL to 0.02),
+            textAnchors = anchors(0.32f, 0.25f)
+        )
+        assertEquals(PhotoVerification.Verdict.PASS, r.verdict)
+    }
+
+    @Test
+    fun lowCategoryStrongTextMatchIsRescuedToReview() {
+        // 약한 클래스(체험)라 카테고리 점수가 낮아도 미션 문구와 확실히 맞으면 즉시 거절하지 않는다.
+        val r = PhotoVerification.verify(
+            "체험", classification(photo, "체험" to 0.10, "투어" to 0.5, PhotoVerification.INVALID_LABEL to 0.05),
+            textAnchors = anchors(0.32f, 0.25f)
+        )
+        assertEquals(PhotoVerification.Verdict.NEEDS_REVIEW, r.verdict)
+    }
+
+    @Test
+    fun midCategoryStrongTextMatchIsUpgradedToPass() {
+        val r = PhotoVerification.verify(
+            "쇼핑", classification(photo, "쇼핑" to 0.50, PhotoVerification.INVALID_LABEL to 0.10),
+            textAnchors = anchors(0.32f, 0.25f)
+        )
+        assertEquals(PhotoVerification.Verdict.PASS, r.verdict)
+    }
+
+    @Test
+    fun textMatchKeepsPassWhenReferenceImageLooksDifferent() {
+        // 대표 이미지와 각도가 달라 유사도는 낮지만 미션 문구와는 맞음 → 검수로 내리지 않는다.
+        val r = PhotoVerification.verify(
+            "투어", classification(photo, "투어" to 0.90, PhotoVerification.INVALID_LABEL to 0.02),
+            referenceEmbeddings = listOf(floatArrayOf(0f, 1f)),
+            textAnchors = anchors(0.30f, 0.27f)
+        )
+        assertEquals(PhotoVerification.Verdict.PASS, r.verdict)
+        assertEquals(0.0, r.similarity!!, 1e-6)
+    }
+
+    @Test
+    fun bothSignalsLowDowngradesToReview() {
+        val r = PhotoVerification.verify(
+            "투어", classification(photo, "투어" to 0.90, PhotoVerification.INVALID_LABEL to 0.02),
+            referenceEmbeddings = listOf(floatArrayOf(0f, 1f)),
+            textAnchors = anchors(0.20f, 0.30f)
+        )
+        assertEquals(PhotoVerification.Verdict.NEEDS_REVIEW, r.verdict)
+    }
+
+    @Test
+    fun invalidRejectShortCircuitsBeforeTextMatch() {
+        val r = PhotoVerification.verify(
+            "맛집", classification(photo, "맛집" to 0.20, PhotoVerification.INVALID_LABEL to 0.80),
+            textAnchors = anchors(0.35f, 0.20f)
+        )
+        assertEquals(PhotoVerification.Verdict.REJECT, r.verdict)
+        assertNull(r.textMatch)
+    }
 }

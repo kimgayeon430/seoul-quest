@@ -69,6 +69,8 @@ private data class PhotoReviewItem(
     val modelVersion: String,
     /** 미션 대표 이미지와의 코사인 유사도. 참조 임베딩이 없던 미션이면 null. */
     val verifySimilarity: Double?,
+    /** 미션 설명 텍스트 일치 확률. 텍스트 임베딩이 없던 미션이면 null. */
+    val verifyTextMatch: Double?,
     val stage2Points: Int
 )
 
@@ -119,6 +121,7 @@ fun AdminPhotoReviewScreen(onNavigateBack: () -> Unit) {
                                 verifyLabel = doc.getString("photoVerifyLabel").orEmpty(),
                                 modelVersion = doc.getString("photoVerifyModelVersion").orEmpty(),
                                 verifySimilarity = doc.getDouble("photoVerifySimilarity"),
+                                verifyTextMatch = doc.getDouble("photoVerifyTextMatch"),
                                 stage2Points = doc.getLong("stage2RewardPoints")?.toInt() ?: 0
                             )
                         }
@@ -297,6 +300,7 @@ fun AdminPhotoReviewScreen(onNavigateBack: () -> Unit) {
                                     stringResource(R.string.admin_photo_review_model_label, item.verifyLabel.ifBlank { "-" }) + " · " +
                                         stringResource(R.string.admin_photo_review_score_label, item.missionCategory, item.verifyScore) +
                                         (item.verifySimilarity?.let { stringResource(R.string.admin_photo_review_similarity_label, it) } ?: "") +
+                                        (item.verifyTextMatch?.let { stringResource(R.string.admin_photo_review_text_match_label, it) } ?: "") +
                                         (if (item.modelVersion.isNotBlank()) " · ${item.modelVersion}" else ""),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                     color = Color(0xFF444444),

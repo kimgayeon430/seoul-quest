@@ -18,6 +18,8 @@ object PhotoGate {
         val matchScore: Double
         val invalidScore: Double
         val similarity: Double?
+        /** 미션 설명 텍스트 일치 확률. 텍스트 임베딩·임베더가 없으면 null. */
+        val textMatch: Double?
 
         /** 업로드하지 않고 재촬영을 요청한다. */
         data class Reject(
@@ -28,6 +30,7 @@ object PhotoGate {
             /** 모델이 낸 최상위 라벨(REJECT 결과 화면에 "AI가 예측한 카테고리"로 보여준다). */
             val topLabel: String = "",
             val reasonCode: PhotoVerification.RejectReasonCode = PhotoVerification.RejectReasonCode.LOW_CONFIDENCE,
+            override val textMatch: Double? = null,
         ) : Decision
 
         /** 업로드를 진행한다. [needsReview] 면 완료는 하되 관리자 검수 큐에 올린다. */
@@ -39,12 +42,14 @@ object PhotoGate {
             override val invalidScore: Double = 0.0,
             /** 미션 대표 이미지와의 코사인 유사도. 참조 임베딩·임베더가 없으면 null. */
             override val similarity: Double? = null,
+            override val textMatch: Double? = null,
         ) : Decision
     }
 
     /**
      * @param referenceEmbeddings 미션 대표 이미지(들) 임베딩(`missions/{id}.photoEmbeddings`). 비어 있으면
      *                            유사도 결합을 건너뛴다. 여러 장이면 최대 유사도를 쓴다(6.7.8).
+     * @param textAnchors         미션 설명 텍스트 임베딩(`missions/{id}.photoTextEmbeddings`). null 이면 건너뛴다.
      */
     fun decide(
         photoBytes: ByteArray,
@@ -52,13 +57,14 @@ object PhotoGate {
         verifier: PhotoVerifier,
         config: PhotoVerificationConfig = PhotoVerificationConfig.DEFAULT,
         referenceEmbeddings: List<FloatArray> = emptyList(),
+        textAnchors: PhotoVerification.TextAnchors? = null,
     ): Decision {
         val classification = try {
             verifier.classify(photoBytes)
         } catch (_: Exception) {
             null
         }
-        val result = PhotoVerification.verify(missionCategory, classification, referenceEmbeddings, config)
+        val result = PhotoVerification.verify(missionCategory, classification, referenceEmbeddings, config, textAnchors)
         return when (result.verdict) {
             PhotoVerification.Verdict.REJECT -> Decision.Reject(
                 reason = result.reason,
@@ -67,6 +73,7 @@ object PhotoGate {
                 similarity = result.similarity,
                 topLabel = classification?.topLabel ?: "",
                 reasonCode = result.rejectReasonCode ?: PhotoVerification.RejectReasonCode.LOW_CONFIDENCE,
+                textMatch = result.textMatch,
             )
             PhotoVerification.Verdict.NEEDS_REVIEW, PhotoVerification.Verdict.PASS -> Decision.Proceed(
                 needsReview = result.verdict == PhotoVerification.Verdict.NEEDS_REVIEW,
@@ -75,6 +82,7 @@ object PhotoGate {
                 modelVersion = verifier.modelVersion,
                 invalidScore = result.invalidScore,
                 similarity = result.similarity,
+                textMatch = result.textMatch,
             )
         }
     }
