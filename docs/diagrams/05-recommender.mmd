@@ -1,0 +1,16 @@
+flowchart LR
+  U["사용자: 취향 · 완료 이력 · 위치 · 현재 시각"] --> FEAT
+  M["후보 미션 (미완료 · 승인됨)"] --> FEAT
+  FEAT["MissionFeatures — 신호 6개 (0~1)<br/>explicit_pref · implicit_affinity · difficulty_fit<br/>proximity · popularity · time_of_day_fit"]
+  FEAT --> RULE["규칙 점수 MissionScorer<br/>손튜닝 가중치 + 근거 칩<br/>(좋아요 기반 인기도 포함)"]
+  FEAT --> LR["학습 re-ranker LearnedReranker<br/>로지스틱 회귀 σ(w·x+b)<br/>reranker.json"]
+  RULE --> BL["최종 = (1−λ)·규칙/최댓값 + λ·완료확률<br/>λ = 0.6"]
+  LR --> BL
+  BL --> DIV["다양성 감점: 같은 카테고리 반복 시 감점"]
+  DIV --> TOP["홈 추천 상위 3개"]
+  RULE --> NEXT["미션 완료 화면 다음 미션 1개 (규칙 점수)"]
+  subgraph Offline["오프라인 학습 (ml/reco)"]
+    SIMU["시뮬레이터 sim.py<br/>(실사용 로그 대체)"] --> ROWS["build_dataset.py"] --> TR["train_reranker.py"] --> LRJ["reranker.json"]
+    LOGS["user_missions 로그 (향후)"] -.-> ROWS
+  end
+  LRJ --> LR

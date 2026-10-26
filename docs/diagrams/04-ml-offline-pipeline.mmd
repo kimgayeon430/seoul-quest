@@ -1,0 +1,26 @@
+flowchart LR
+  subgraph Data["데이터 구축 (ml/data)"]
+    F101["Food-101 val → 맛집"] --> RAW["raw/카테고리/scene__n.jpg"]
+    P365["Places365 val<br/>scene→카테고리 매핑<br/>투어107·체험53·쇼핑28"] --> RAW
+    NEG["무효 합성<br/>스크린샷·열화·화면 재촬영 + 수집분"] --> RAW
+    RAW --> SPLIT["scene 단위 그룹 분할 70/15/15"] --> HFDS[("HF Hub 데이터셋<br/>6,063장")]
+  end
+  subgraph Train["학습 (Colab T4, notebooks)"]
+    HFDS --> ZS["CLIP zero-shot 기준선"]
+    HFDS --> FT["MobileViT-small<br/>헤드 8ep → 전체 파인튜닝 6ep"]
+    FT --> THR["test 임계값 스윕 → thresholds.json"]
+    FT --> EXP["ONNX export (opset 18) + int8 동적 양자화"]
+  end
+  subgraph Emb["임베딩 사전계산"]
+    CLIPX["CLIP ViT-B/32 → ONNX int8"] --> HFM[("HF Hub 모델 저장소")]
+    MIMG["미션 대표 이미지"] --> EM["embed_missions.py"] --> FSI[("Firestore photoEmbeddings")]
+    MTXT["미션 문구 photoPromptsEn"] --> ET["embed_mission_texts.py"] --> FST[("Firestore photoTextEmbeddings/Negatives")]
+  end
+  EXP --> APP["앱 assets/photo_verifier.onnx"]
+  THR --> CFG["PhotoVerificationConfig"]
+  HFM --> APPDL["앱 최초 실행 시 다운로드 · 캐시"]
+  subgraph Eval["평가 (ml/eval)"]
+    EV["extract_features → eval_classifier · eval_pipeline · eval_tuning"]
+  end
+  HFDS --> EV
+  APP --> EV

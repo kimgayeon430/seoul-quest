@@ -1,0 +1,24 @@
+flowchart TD
+  IMG["촬영본 (EXIF 회전 보정)"] --> PRE1["전처리 A: 짧은 변 288 → 256 crop<br/>×1/255 · RGB→BGR"]
+  IMG --> PRE2["전처리 B: 224 리사이즈·crop<br/>CLIP mean/std 정규화"]
+  PRE1 --> MV["MobileViT-small 파인튜닝<br/>5클래스 softmax s[투어·맛집·체험·쇼핑·무효]"]
+  PRE2 --> CL["CLIP ViT-B/32 이미지 인코더<br/>512차원 임베딩 e (L2 정규화)"]
+  MV --> G1{"s[무효] ≥ 0.55 ?"}
+  G1 -- 예 --> REJ1["REJECT (무효 대상)<br/>유사도 보지 않음: 화면 재촬영 스푸핑 방지"]
+  G1 -- 아니오 --> G2{"미션 카테고리 점수 s[c]"}
+  G2 -- "≥ 0.65" --> BP["1차 PASS"]
+  G2 -- "0.22 ~ 0.65" --> BR["1차 REVIEW"]
+  G2 -- "< 0.22" --> BJ["1차 REJECT"]
+  CL --> SIM["대표 이미지 유사도<br/>sim = max cos(e, 대표 임베딩들)"]
+  CL --> TXT["미션 문구 일치도<br/>softmax(100·cos) 미션 문구 vs 대조 문구 110개"]
+  FS[("Firestore missions/{id}<br/>photoEmbeddings · photoTextEmbeddings<br/>photoTextNegatives")] --> SIM
+  FS --> TXT
+  BP --> ADJ{"보조 신호로 ±1단계 조정"}
+  BR --> ADJ
+  BJ --> ADJ
+  SIM --> ADJ
+  TXT --> ADJ
+  ADJ -- "1차 REJECT & (sim≥0.50 or text≥0.30)" --> OUT_R["REVIEW (구제)"]
+  ADJ -- "1차 REVIEW & (sim≥0.76 or text≥0.30)" --> OUT_P["PASS (승격)"]
+  ADJ -- "1차 PASS & sim<0.76 & text<0.02" --> OUT_D["REVIEW (다른 대상 의심)"]
+  ADJ -- 그 외 --> OUT_K["1차 판정 유지"]
