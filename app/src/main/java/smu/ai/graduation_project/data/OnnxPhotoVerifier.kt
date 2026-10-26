@@ -6,6 +6,7 @@ import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import org.json.JSONObject
+import smu.ai.graduation_project.domain.CategoryProbe
 import smu.ai.graduation_project.domain.PhotoVerification
 import java.nio.FloatBuffer
 import kotlin.math.exp
@@ -25,6 +26,9 @@ import kotlin.math.min
  * [embedder] 가 주어지면 같은 촬영본의 이미지 임베딩도 함께 담아, 미션 대표 이미지와의
  * 코사인 유사도를 판정에 보조 신호로 쓸 수 있게 한다(보고서 6.7). 임베더가 없거나 실패하면
  * 임베딩만 null 이고 분류 점수는 그대로다.
+ *
+ * 임베딩이 있고 `assets/clip_probe.json`([probeAsset])이 있으면 그 임베딩 위의 선형 분류기로 카테고리 점수를
+ * 보정한다([CategoryProbe], 무효 점수는 그대로). 없으면 MobileViT 점수만 쓴다.
  */
 class OnnxPhotoVerifier(
     context: Context,
@@ -32,6 +36,7 @@ class OnnxPhotoVerifier(
     labelsAsset: String = "photo_verifier_labels.json",
     preprocessorAsset: String = "photo_verifier_preprocessor.json",
     private val embedder: PhotoEmbedder? = null,
+    private val probeAsset: String? = "clip_probe.json",
 ) : PhotoVerifier {
 
     private val appContext = context.applicationContext
@@ -76,7 +81,12 @@ class OnnxPhotoVerifier(
         }.getOrNull()?.takeIf { it.isNotBlank() } ?: "onnx-photo-verifier"
     }
 
-    override val modelVersion: String get() = modelVersionValue
+    private val probe: CategoryProbe.Model? by lazy {
+        probeAsset?.let { CategoryProbeSource.load(appContext, it) }
+    }
+
+    /** probe 가 탑재돼 있으면 `"<분류기 버전>+<probe 버전>"`. 임베더를 못 받은 사진은 실제로는 분류기 점수만 쓴다. */
+    override val modelVersion: String get() = probe?.let { "$modelVersionValue+${it.version}" } ?: modelVersionValue
 
     /** 첫 [classify] 가 임베더 다운로드에 막히지 않도록 화면 진입 시 호출한다. */
     override fun prefetch() {
@@ -103,10 +113,11 @@ class OnnxPhotoVerifier(
                     (0 until n).associate { labelNames[it] to probs[it].toDouble() }
                 }
             }
-            PhotoVerification.Classification(
+            val classification = PhotoVerification.Classification(
                 scores = scores,
                 embedding = runCatching { embedder?.embed(photoBytes) }.getOrNull(),
             )
+            CategoryProbe.apply(probe, classification)
         }.onFailure { Log.w(TAG, "추론 실패: ${it.message}", it) }.getOrNull()
     }
 

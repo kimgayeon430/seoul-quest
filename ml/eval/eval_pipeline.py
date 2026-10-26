@@ -140,10 +140,14 @@ def main() -> None:
     ap.add_argument("--ensemble", action="store_true", help="미션 문구 3종 앙상블 (E5)")
     ap.add_argument("--max-wrong", type=int, default=10, help="미션당 '다른 대상' 제출 표본 수")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--probs", default="mvit", choices=["mvit", "hybrid"],
+                    help="hybrid = eval_clip_probe.py 의 E3c (MobileViT+CLIP probe 카테고리 결합, 무효는 MobileViT)")
     ap.add_argument("--sim-suspect", type=float, default=None, help="similaritySuspectThreshold 덮어쓰기 (변경 전 0.68 재현용)")
     args = ap.parse_args()
 
     d = load(args.split)
+    if args.probs == "hybrid":
+        d["mvit_probs"] = np.load(ROOT / f"ml/eval/cache/hybrid_probs_{args.split}.npy")
     enc, _ = clip_text_encoder()
     labels_order = d["label_order"]
     labels, keys, pos, neg, refs, trials = build(d, args.refs, enc, args.ensemble, args.max_wrong, args.seed)
@@ -170,7 +174,7 @@ def main() -> None:
 
     out = ROOT / "ml/eval/results"
     out.mkdir(parents=True, exist_ok=True)
-    tag = f"pipeline_{args.split}_k{args.refs}{'_ens' if args.ensemble else ''}_ss{c.simSuspect:.2f}"
+    tag = f"pipeline_{args.split}_k{args.refs}{'_ens' if args.ensemble else ''}_ss{c.simSuspect:.2f}{'_hybrid' if args.probs == 'hybrid' else ''}"
     (out / f"{tag}.json").write_text(json.dumps(
         {"args": vars(args), "n_missions": len(keys), "n_trials": dict(n_by), "config": c.__dict__,
          "ablation": abl, "separability": sep}, ensure_ascii=False, indent=1))
