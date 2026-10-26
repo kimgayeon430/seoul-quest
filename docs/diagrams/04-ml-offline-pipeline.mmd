@@ -9,7 +9,7 @@ flowchart LR
     HFDS --> ZS["CLIP zero-shot 기준선"]
     HFDS --> FT["MobileViT-small<br/>헤드 8ep → 전체 파인튜닝 6ep"]
     FT --> THR["test 임계값 스윕 → thresholds.json"]
-    FT --> EXP["ONNX export (opset 18) + int8 동적 양자화"]
+    FT --> EXP["ONNX export (opset 18, fp32 20MB)"]
   end
   subgraph Emb["임베딩 사전계산"]
     CLIPX["CLIP ViT-B/32 → ONNX int8"] --> HFM[("HF Hub 모델 저장소")]
@@ -21,6 +21,10 @@ flowchart LR
   HFM --> APPDL["앱 최초 실행 시 다운로드 · 캐시"]
   subgraph Eval["평가 (ml/eval)"]
     EV["extract_features → eval_classifier · eval_pipeline · eval_tuning"]
+    PRB["eval_clip_probe: CLIP 임베딩 선형 probe 학습"]
   end
   HFDS --> EV
   APP --> EV
+  HFDS --> PRB
+  PRB -->|clip_probe.json| APP2["앱 assets/clip_probe.json"]
+  EV -->|임계값| CFG
