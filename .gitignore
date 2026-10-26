@@ -49,3 +49,7 @@ ui-debug.log
 
 # 디버깅용 adb 스크린샷 스크래치 파일 (실기기 확인용, 커밋 대상 아님)
 /_*.png
+
+# ml/eval 캐시(모델 출력, 재생성 가능)
+ml/eval/cache/
+.venv-ml/
