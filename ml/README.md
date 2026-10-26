@@ -107,6 +107,8 @@ cd ..
 .venv/bin/python embed_missions.py --model /tmp/emb/photo_embedder.onnx \
   --firebase-key serviceAccount.json
 #    e. 미션 설명 텍스트 임베딩 채우기 (대표 이미지 유무와 무관). --eval 로 임계값 근거 확인
+#       문구는 미션 문서의 photoPromptsEn 을 우선 쓴다. 현재 값은 mission_prompts_en.json 에 보관
+#       (2026-10-26 Firestore 반영, 임계값 pass 0.30 / suspect 0.02 의 근거 분포도 이 문구 기준).
 .venv/bin/python embed_mission_texts.py --firebase-key serviceAccount.json --eval
 ```
 
