@@ -9,6 +9,7 @@ import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.firestore
 import smu.ai.graduation_project.domain.MissionCompletion
 import smu.ai.graduation_project.domain.MissionRewardPolicy
+import smu.ai.graduation_project.domain.PhotoVerification
 import smu.ai.graduation_project.domain.PhotoVerificationConfig
 import smu.ai.graduation_project.domain.WeekBoundary
 import java.util.concurrent.Executors
@@ -45,7 +46,8 @@ class FirebaseMissionRepository : MissionRepository {
                         category = doc.getString("category") ?: "투어",
                         points = doc.getLong("points")?.toInt() ?: 0,
                         location = doc.getGeoPoint("location"),
-                        photoEmbeddings = parsePhotoEmbeddings(doc)
+                        photoEmbeddings = parsePhotoEmbeddings(doc),
+                        textAnchors = parseTextAnchors(doc)
                     )
                 )
             }
@@ -71,6 +73,28 @@ class FirebaseMissionRepository : MissionRepository {
             ?.mapNotNull { (it as? Number)?.toFloat() }
             ?.takeIf { it.isNotEmpty() }
         return if (single != null) many + listOf(single) else many
+    }
+
+    /**
+     * `missions/{id}.photoTextEmbeddings`(미션 문구) + `photoTextNegatives`(대조 문구) +
+     * `photoTextLogitScale` 을 읽는다. `ml/embed_mission_texts.py` 가 쓰는 형식이며,
+     * [parsePhotoEmbeddings] 와 같은 `{"v": [...]}` 배열의 맵 구조다. 둘 중 하나라도 비면 null.
+     */
+    private fun parseTextAnchors(doc: com.google.firebase.firestore.DocumentSnapshot): PhotoVerification.TextAnchors? {
+        fun vectors(field: String): List<FloatArray> =
+            (doc.get(field) as? List<*>)
+                ?.mapNotNull { row ->
+                    val vec = (row as? Map<*, *>)?.get("v") as? List<*>
+                    vec?.mapNotNull { (it as? Number)?.toFloat() }?.takeIf { it.isNotEmpty() }?.toFloatArray()
+                }
+                .orEmpty()
+        val anchors = PhotoVerification.TextAnchors(
+            positives = vectors("photoTextEmbeddings"),
+            negatives = vectors("photoTextNegatives"),
+            logitScale = doc.getDouble("photoTextLogitScale")
+                ?: PhotoVerification.TextAnchors.DEFAULT_LOGIT_SCALE,
+        )
+        return anchors.takeIf { it.isUsable }
     }
 
     override fun loadUserMissionState(
@@ -160,6 +184,7 @@ class FirebaseMissionRepository : MissionRepository {
         photoVerifier: PhotoVerifier,
         photoVerificationConfig: PhotoVerificationConfig,
         referenceEmbeddings: List<FloatArray>,
+        textAnchors: PhotoVerification.TextAnchors?,
         onResult: (MissionRepository.CompleteResult) -> Unit,
         onError: (Exception) -> Unit
     ) {
@@ -179,7 +204,7 @@ class FirebaseMissionRepository : MissionRepository {
             //    구분되는 ANALYZE 단계로 보고한다 — 안 그러면 콜백이 아예 안 불려 화면이 멈춘다.
             val decision = try {
                 PhotoGate.decide(
-                    photoBytes, missionCategory, photoVerifier, photoVerificationConfig, referenceEmbeddings
+                    photoBytes, missionCategory, photoVerifier, photoVerificationConfig, referenceEmbeddings, textAnchors
                 )
             } catch (e: Exception) {
                 Log.e("PhotoVerify", "ANALYZE 단계 실패: mission=$missionId", e)
@@ -199,6 +224,7 @@ class FirebaseMissionRepository : MissionRepository {
                 "mission=$missionId cat=$missionCategory ref=${if (referenceEmbeddings.isNotEmpty()) "y(${referenceEmbeddings.size}x${referenceEmbeddings[0].size})" else "n"} " +
                     "match=${"%.3f".format(decision.matchScore)} invalid=${"%.3f".format(decision.invalidScore)} " +
                     "sim=${decision.similarity?.let { "%.3f".format(it) } ?: "null"} " +
+                    "text=${decision.textMatch?.let { "%.3f".format(it) } ?: "null"} " +
                     "-> ${decision::class.simpleName}${if (decision is PhotoGate.Decision.Proceed && decision.needsReview) "(review)" else ""}"
             )
             if (decision is PhotoGate.Decision.Reject) {
@@ -271,6 +297,7 @@ class FirebaseMissionRepository : MissionRepository {
                             "photoVerifyLabel" to proceed.topLabel,
                             "photoVerifyModelVersion" to proceed.modelVersion,
                             "photoVerifySimilarity" to (proceed.similarity ?: FieldValue.delete()),
+                            "photoVerifyTextMatch" to (proceed.textMatch ?: FieldValue.delete()),
                             "photoUploadedAt" to FieldValue.serverTimestamp(),
                             "stage2RewardGranted" to outcome.markCompleted,
                             "stage2RewardPoints" to MissionRewardPolicy.stage2Reward(missionPoints)
@@ -304,6 +331,7 @@ class FirebaseMissionRepository : MissionRepository {
                         topLabel = proceed.topLabel,
                         modelVersion = proceed.modelVersion,
                         similarity = proceed.similarity,
+                        textMatch = proceed.textMatch,
                         totalPointsAfter = result.delta?.totalPointsAfter ?: 0,
                         weeklyCompletedAfter = result.delta?.weeklyCompletedAfter ?: 0,
                         newlyUnlockedBadges = result.delta?.newlyUnlockedBadges ?: emptyList()

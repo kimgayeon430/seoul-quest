@@ -285,6 +285,7 @@
     <string name="admin_photo_review_model_label">모델 판정: %1$s</string>
     <string name="admin_photo_review_score_label">\'%1$s\' 점수 %2$.2f</string>
     <string name="admin_photo_review_similarity_label"> · 대표사진 유사도 %1$.2f</string>
+    <string name="admin_photo_review_text_match_label"> · 미션 설명 일치도 %1$.2f</string>
     <string name="admin_photo_review_reject">반려</string>
     <string name="admin_photo_review_approve">승인</string>
     <string name="admin_photo_review_reject_title">사진 반려</string>

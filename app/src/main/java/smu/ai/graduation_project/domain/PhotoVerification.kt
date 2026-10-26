@@ -1,5 +1,6 @@
 package smu.ai.graduation_project.domain
 
+import kotlin.math.exp
 import kotlin.math.sqrt
 
 /**
@@ -23,6 +24,14 @@ import kotlin.math.sqrt
  * 참조 이미지가 여러 장이면(각도·조명·계절이 다른 사진) [PhotoEmbedding.maxCosineOrNull] 로
  * **최대 유사도**를 취한다 — 한 장만 닮아도 같은 대상으로 인정한다(6.7.6/6.7.8, 오프라인
  * 프로토타입에서 Youden J 0.33 → 0.47 로 분리력 개선 확인).
+ *
+ * ### 미션 설명 텍스트 일치도 (선택)
+ * CLIP 은 이미지와 텍스트를 같은 임베딩 공간에 둔다. 미션 문구("a photo of tteokbokki at
+ * Gwangjang Market" 등)의 텍스트 임베딩([TextAnchors.positives])과, 다른 미션·무효 문구의 텍스트
+ * 임베딩([TextAnchors.negatives])을 함께 두고 촬영본이 **이 미션 문구에 얼마나 더 가까운지**를
+ * softmax 확률([PhotoEmbedding.textMatchProbOrNull])로 계산한다. 대표 이미지가 한 장뿐이라
+ * 각도·구도가 달라 유사도가 낮게 나오는 경우를 보완하고, 대표 이미지가 없는 미션에도 쓸 수 있다.
+ * 대표 이미지 유사도와 똑같이 보조 신호로만 쓰며, 둘 중 하나라도 근거가 되면 인정한다.
  */
 object PhotoVerification {
 
@@ -60,6 +69,26 @@ object PhotoVerification {
             31 * scores.hashCode() + (embedding?.contentHashCode() ?: 0)
     }
 
+    /**
+     * 미션 설명 텍스트의 CLIP 텍스트 임베딩. `ml/embed_mission_texts.py` 로 사전계산해
+     * `missions/{id}.photoTextEmbeddings` / `photoTextNegatives` 에 저장한다.
+     *
+     * @property positives  이 미션을 묘사하는 문구들(제목·설명·관리자 지정 프롬프트)의 임베딩.
+     * @property negatives  대조 문구(다른 미션 문구, 셀카·스크린샷 등 무효 문구)의 임베딩.
+     * @property logitScale CLIP 의 logit scale(ViT-B/32 는 100). 코사인 유사도에 곱해 softmax 에 넣는다.
+     */
+    class TextAnchors(
+        val positives: List<FloatArray>,
+        val negatives: List<FloatArray>,
+        val logitScale: Double = DEFAULT_LOGIT_SCALE,
+    ) {
+        val isUsable: Boolean get() = positives.isNotEmpty() && negatives.isNotEmpty()
+
+        companion object {
+            const val DEFAULT_LOGIT_SCALE = 100.0
+        }
+    }
+
     data class Result(
         val verdict: Verdict,
         /** 미션 카테고리에 대한 모델 점수. */
@@ -71,7 +100,9 @@ object PhotoVerification {
         /** 사용자/관리자에게 보여줄 사유. */
         val reason: String,
         /** [Verdict.REJECT] 일 때만 값이 있다. */
-        val rejectReasonCode: RejectReasonCode? = null
+        val rejectReasonCode: RejectReasonCode? = null,
+        /** 미션 설명 텍스트 일치 확률(0..1, [PhotoEmbedding.textMatchProbOrNull]). 계산하지 못했으면 null. */
+        val textMatch: Double? = null,
     )
 
     /**
@@ -79,12 +110,14 @@ object PhotoVerification {
      * @param classification      모델 분류 결과. 모델을 못 불러왔으면 null.
      * @param referenceEmbeddings 미션 대표 이미지(들)의 임베딩. 비어 있으면(대부분의 기존 미션) 유사도 결합을 건너뛴다.
      *                            여러 장이면 최대 유사도를 쓴다.
+     * @param textAnchors         미션 설명 텍스트 임베딩. null 이면(대부분의 기존 미션) 텍스트 일치도 결합을 건너뛴다.
      */
     fun verify(
         missionCategory: String,
         classification: Classification?,
         referenceEmbeddings: List<FloatArray> = emptyList(),
-        config: PhotoVerificationConfig = PhotoVerificationConfig.DEFAULT
+        config: PhotoVerificationConfig = PhotoVerificationConfig.DEFAULT,
+        textAnchors: TextAnchors? = null,
     ): Result {
         if (classification == null) {
             return if (config.passWhenModelUnavailable) {
@@ -117,28 +150,36 @@ object PhotoVerification {
         } else null
 
         val similarity = PhotoEmbedding.maxCosineOrNull(classification.embedding, referenceEmbeddings)
-        if (similarity == null) {
+        val textMatch = PhotoEmbedding.textMatchProbOrNull(classification.embedding, textAnchors)
+        if (similarity == null && textMatch == null) {
             return Result(base, match, invalid, null, reasonFor(base, missionCategory), baseReasonCode)
         }
 
-        // (3) 유사도를 보조 신호로 결합한다. 한 단계씩만 조정한다(6.7.5).
+        // (3) 대표 이미지 유사도·미션 텍스트 일치도를 보조 신호로 결합한다. 한 단계씩만 조정한다(6.7.5).
+        //     둘 중 계산된 신호만 쓰고, 하나라도 "닮았다"고 하면 그쪽을 근거로 인정한다.
+        val simAtLeast = { t: Double -> similarity != null && similarity >= t }
+        val textAtLeast = { t: Double -> textMatch != null && textMatch >= t }
+        // 구제 근거: 대표 이미지와 어느 정도 닮았거나, 미션 문구와 확실히 맞음.
+        val rescue = simAtLeast(config.similarityRescueThreshold) || textAtLeast(config.textMatchPassThreshold)
+        // 통과 근거: 대표 이미지와 매우 닮았거나, 미션 문구와 확실히 맞음.
+        val support = simAtLeast(config.similaritySuspectThreshold) || textAtLeast(config.textMatchPassThreshold)
+        // 반대 근거: 어느 신호도 이 미션의 대상이라고 볼 만큼 닮지 않음.
+        val against = !simAtLeast(config.similaritySuspectThreshold) && !textAtLeast(config.textMatchSuspectThreshold)
+
         val combined = when {
-            // 카테고리 점수가 낮아도 대표 이미지와 충분히 닮았으면 즉시 거절하지 않고 검수로 구제.
-            base == Verdict.REJECT && similarity >= config.similarityRescueThreshold ->
-                Verdict.NEEDS_REVIEW
-            // 애매한데 대표 이미지와 매우 닮았으면 통과.
-            base == Verdict.NEEDS_REVIEW && similarity >= config.similaritySuspectThreshold ->
-                Verdict.PASS
-            // 유형은 맞는데 대표 이미지와 안 닮음 → 같은 유형의 다른 대상 촬영 의심, 검수로.
-            base == Verdict.PASS && similarity < config.similaritySuspectThreshold ->
-                Verdict.NEEDS_REVIEW
+            // 카테고리 점수가 낮아도 미션 대상과 충분히 닮았으면 즉시 거절하지 않고 검수로 구제.
+            base == Verdict.REJECT && rescue -> Verdict.NEEDS_REVIEW
+            // 애매한데 미션 대상과 매우 닮았으면 통과.
+            base == Verdict.NEEDS_REVIEW && support -> Verdict.PASS
+            // 유형은 맞는데 미션 대상과 안 닮음 → 같은 유형의 다른 대상 촬영 의심, 검수로.
+            base == Verdict.PASS && against -> Verdict.NEEDS_REVIEW
             else -> base
         }
-        // combined 가 REJECT 로 남는 경우는 base 가 이미 REJECT 였고 유사도 구제도 안 된 경우뿐이다.
+        // combined 가 REJECT 로 남는 경우는 base 가 이미 REJECT 였고 구제도 안 된 경우뿐이다.
         val combinedReasonCode = if (combined == Verdict.REJECT) baseReasonCode else null
 
         return Result(combined, match, invalid, similarity,
-            reasonForCombined(base, combined, missionCategory), combinedReasonCode)
+            reasonForCombined(base, combined, missionCategory), combinedReasonCode, textMatch)
     }
 
     /**
@@ -174,7 +215,7 @@ object PhotoVerification {
         category: String,
     ): String = when {
         base == Verdict.REJECT && combined == Verdict.NEEDS_REVIEW ->
-            "'$category' 요소는 약하지만 대표 사진과 닮아 관리자 확인 후 지급돼요."
+            "'$category' 요소는 약하지만 미션 대상과 닮아 관리자 확인 후 지급돼요."
         base == Verdict.NEEDS_REVIEW && combined == Verdict.PASS ->
             "사진 인증 완료"
         base == Verdict.PASS && combined == Verdict.NEEDS_REVIEW ->
@@ -213,6 +254,24 @@ object PhotoEmbedding {
     fun maxCosineOrNull(captured: FloatArray?, refs: List<FloatArray>): Double? {
         if (captured == null || refs.isEmpty()) return null
         return refs.mapNotNull { cosineOrNull(captured, it) }.maxOrNull()
+    }
+
+    /**
+     * 촬영본이 미션 문구([TextAnchors.positives])에 맞을 확률. CLIP 제로샷 분류와 같은 방식으로
+     * `logitScale × 코사인` 을 softmax 에 넣되, 미션 문구 쪽은 가장 잘 맞는 하나(최대 logit)만 쓴다
+     * (문구를 여러 개 넣었다고 확률이 부풀지 않도록). 대조 문구가 많을수록 우연히 높게 나올 확률이 준다.
+     *
+     * [captured] 가 null 이거나 [anchors] 가 비어 있거나 차원이 안 맞으면 null.
+     */
+    fun textMatchProbOrNull(captured: FloatArray?, anchors: PhotoVerification.TextAnchors?): Double? {
+        if (captured == null || anchors == null || !anchors.isUsable) return null
+        val pos = anchors.positives.mapNotNull { cosineOrNull(captured, it) }.maxOrNull() ?: return null
+        val neg = anchors.negatives.mapNotNull { cosineOrNull(captured, it) }
+        if (neg.isEmpty()) return null
+        val logits = (listOf(pos) + neg).map { it * anchors.logitScale }
+        val maxLogit = logits.max()
+        val denom = logits.sumOf { exp(it - maxLogit) }
+        return exp(logits[0] - maxLogit) / denom
     }
 
     /** L2 정규화한 복사본. 노름이 0이면 원본 복사본. */
