@@ -9,9 +9,13 @@ package smu.ai.graduation_project.domain
  * 현재 기본값: `mobilevit-small-fullft-1` (test macro-F1 0.81, 재촬영 스푸핑 augmentation 포함) 로 `ml/thresholds.json` 에서 선정.
  * invalidReject 0.55 → 무효 사진 차단율 ≈ 0.93 / 정상 사진 오탐율(hardReject 0.22 기준) ≈ 0.146.
  *
- * 유사도 임계값([similarityRescueThreshold] 0.50, [similaritySuspectThreshold] 0.68)은 미션
- * 대표 이미지 임베딩이 있을 때만 적용된다(보고서 6.7). 공개 scene 프록시(`ml/embedding_separability.py`)
- * 에서 같은 대상 쌍 p15 / 다른 대상 쌍 p90 으로 잡은 잠정치이며, 실제 미션 사진으로 재보정해야 한다.
+ * 유사도 임계값([similarityRescueThreshold] 0.50, [similaritySuspectThreshold] 0.76)은 미션
+ * 대표 이미지 임베딩이 있을 때만 적용된다(보고서 6.7). rescue 0.50 은 공개 scene 프록시
+ * (`ml/embedding_separability.py`)의 같은 대상 쌍 p15. suspect 는 원래 다른 대상 쌍 p90(0.68)이었으나,
+ * 텍스트 일치도와 함께 쓰는 판정에서 `ml/eval/eval_tuning.py`(validation 가상 미션으로 선택, test 확인)
+ * 결과 0.76 으로 올렸다: test 기준 같은 카테고리 다른 대상 오수락 0.184 → 0.084, 정상 PASS 0.803 → 0.794.
+ * 실기기 라벨(정상 0.791 / 화면 재촬영 0.673, 보고서 6.7.9)도 여전히 이 기준 양쪽에 놓인다. 잠정치이며
+ * 실제 미션 사진으로 재보정해야 한다.
  *
  * 텍스트 일치도 임계값([textMatchPassThreshold] 0.30, [textMatchSuspectThreshold] 0.02)은 미션 설명
  * 텍스트 임베딩이 있을 때만 적용된다. 값은 "미션 문구 1개 vs 대조 문구 N개(다른 미션 문구 전부 +
@@ -38,7 +42,7 @@ data class PhotoVerificationConfig(
      *  - 이 값 이상 + 카테고리 애매 → 통과로 상향
      *  - 이 값 미만 + 카테고리 확실 → 같은 유형의 다른 대상 의심, 검수로 하향
      */
-    val similaritySuspectThreshold: Double = 0.68,
+    val similaritySuspectThreshold: Double = 0.76,
     /**
      * 미션 설명 텍스트 일치 확률이 이 값 이상이면 "이 미션의 대상"이라는 강한 근거로 본다.
      *  - 카테고리 점수 낮음(REJECT) → 검수로 구제

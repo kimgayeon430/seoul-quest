@@ -59,7 +59,8 @@ class OnnxPhotoVerifierTest {
     @Test
     fun modelVersionComesFromAsset() {
         // photo_verifier_version.txt 를 못 읽으면 "onnx-photo-verifier" 로 폴백한다.
-        assertEquals("mobilevit-small-fullft-1", verifier.modelVersion)
+        // assets/clip_probe.json 이 있으면 "+<probe 버전>" 이 붙는다(CategoryProbe).
+        assertEquals("mobilevit-small-fullft-1+clip-probe-lr-C3-w0.9", verifier.modelVersion)
     }
 
     @Test

@@ -1,0 +1,7 @@
+flowchart LR
+  P1["사용자 미션 제안<br/>제목·설명·카테고리<br/>대표 이미지·지도 위치"] --> P2["pending<br/>(points = 0)"]
+  P2 --> P3{"관리자<br/>제안 검수"}
+  P3 -- "승인: 포인트 확정" --> P4["approved<br/>목록·지도·추천에 노출"]
+  P3 -- "수정 요청 (사유)" --> P5["changes_requested<br/>제안자가 고쳐 재제출"]
+  P5 --> P2
+  P3 -- "반려 (사유)" --> P6["rejected"]

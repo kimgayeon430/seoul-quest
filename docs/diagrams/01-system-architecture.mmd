@@ -1,0 +1,35 @@
+flowchart TB
+  subgraph Device["Android 앱 — Kotlin · Jetpack Compose · MVVM"]
+    direction TB
+    UI["ui/ — Compose 화면 + ViewModel<br/>홈 · 미션 목록/지도 · 미션 수행 · 랭킹 · 마이페이지 · 관리자"]
+    DATA["data/ — Repository 계층<br/>FirebaseMissionRepository · UserRepository · SupabaseStorage · PhotoGate"]
+    subgraph Core[" "]
+      direction LR
+      DOMAIN["domain/ — 순수 Kotlin 규칙 (단위 테스트)<br/>LocationVerification · PhotoVerification<br/>MissionRewardPolicy · MissionRecommender · TravelLevel · Badge"]
+      ML["온디바이스 추론 — ONNX Runtime Mobile<br/>MobileViT-small 분류기 (fp32 20MB, assets)<br/>CLIP ViT-B/32 임베더 (int8 89MB, 최초 다운로드 후 캐시)<br/>추천 re-ranker 가중치 (reranker.json)"]
+    end
+    UI --> DATA --> DOMAIN
+    DATA --> ML
+  end
+  subgraph Cloud["외부 서비스"]
+    direction LR
+    FS[("Cloud Firestore<br/>users · missions · user_missions<br/>admins · mission_likes · mission_bookmarks")]
+    AUTH["Firebase Authentication"]
+    SB[("Supabase Storage<br/>mission-photos")]
+    HF[("Hugging Face Hub<br/>CLIP 임베더 ONNX · 학습 데이터셋")]
+    NAVER["네이버 지도 SDK"]
+  end
+  DATA --- AUTH
+  DATA --- FS
+  DATA --- SB
+  ML --- HF
+  UI --- NAVER
+  subgraph Offline["오프라인 ML 파이프라인 — Python · ml/"]
+    direction LR
+    TRAIN["데이터 구축 · 학습 · ONNX export"]
+    EMB["미션 임베딩 사전계산<br/>대표 이미지 · 미션 문구"]
+    EVAL["평가 · 임계값 선정 (ml/eval)"]
+  end
+  TRAIN -->|모델·임계값 번들| ML
+  TRAIN -->|모델·데이터셋 업로드| HF
+  EMB -->|photoEmbeddings · photoTextEmbeddings| FS
