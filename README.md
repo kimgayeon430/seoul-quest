@@ -1,10 +1,30 @@
+<div align="center">
+
 # Seoul Quest
 
-> 미션을 따라 걷다 보면 서울 여행이 완성됩니다.
+**미션을 따라 걷다 보면 서울 여행이 완성됩니다.**
+
+온디바이스 다중 신호 사진 인증과 하이브리드 추천을 적용한 여행 미션 게이미피케이션 앱
+
+![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-Auth%20%C2%B7%20Firestore-FFCA28?logo=firebase&logoColor=black)
+![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-on--device-005CED?logo=onnx&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-training-EE4C2C?logo=pytorch&logoColor=white)
+
+</div>
 
 **Seoul Quest**는 여행지 미션을 수행하고 GPS와 사진으로 인증해 포인트·레벨·배지를 얻는 Android 여행 앱입니다. 여행 취향에 맞는 미션 추천과 지도 탐색, 온디바이스 AI 사진 인증을 연결해 여행의 발견부터 성취까지 하나의 흐름으로 제공합니다.
 
 숙명여자대학교 인공지능공학부 졸업 프로젝트로 개발했습니다.
+
+### 한눈에 보기
+
+- **온디바이스 4중 신호 사진 인증** — MobileViT 분류 + CLIP 선형 분류기 보정 + 대표 이미지 유사도 + 미션 문구 일치도를 결합해, 사진을 서버로 보내지 않고 기기에서 통과·검수·재촬영을 판정합니다. 같은 카테고리의 *다른 대상* 오수락을 75.5%에서 8.4%로 낮췄습니다.
+- **하이브리드 미션 추천** — 6개 신호의 규칙 점수와 로지스틱 회귀 re-ranker를 결합하고 카테고리 다양성을 반영합니다.
+- **사용자·관리자 양면 서비스** — 미션 수행·보상·랭킹·배지와, 관리자 미션 관리·사진 검수·제안 검수·사용자 관리를 한 앱에서 제공합니다.
+- **재현 가능한 실험** — 데이터 구축, 학습, ONNX 변환, 평가 스크립트와 결과 JSON을 저장소에 모두 포함했습니다.
 
 | 프로젝트 | 정보 |
 | --- | --- |
@@ -69,7 +89,16 @@ Seoul Quest는 장소를 둘러보는 여행에 구체적인 활동과 달성 �
 | 다국어 지원 | 한국어·영어·일본어 UI 전환과 언어별 미션 콘텐츠 표시 |
 | 계정 관리 | 회원가입·로그인, 여행 취향 설정, 게스트 둘러보기와 프로필 |
 
-관리자는 미션 등록·수정·삭제, 사진 인증과 미션 제안 검수, 사용자 진행 현황 조회 및 관리자 권한 관리를 수행합니다.
+### 관리자 기능
+
+`admins/{uid}` 문서가 있는 계정에는 하단 탭에 관리자 메뉴가 나타납니다. 관리자 권한은 Firestore 보안 규칙에서도 같은 기준으로 검사합니다.
+
+| 화면 | 기능 |
+| --- | --- |
+| 미션 관리 | 미션 등록·수정·삭제, 카테고리·설명·위도/경도·포인트·소요 시간·대표 이미지 설정 |
+| 사진 인증 검수 | AI가 `NEEDS_REVIEW`로 보낸 인증 사진을 예측 라벨·카테고리 점수·유사도·문구 일치도와 함께 확인하고 승인·반려 (승인 시 보상 지급) |
+| 미션 제안 검수 | 사용자가 제안하거나 수정 요청한 미션을 승인·반려 |
+| 사용자 관리 | 사용자별 진행 현황·포인트 조회, 관리자 권한 부여·해제 |
 
 ## 서비스 이용 흐름
 
@@ -120,6 +149,21 @@ Android 앱은 Firebase로 계정과 미션 데이터를 관리하고, Supabase 
 
 ViewModel·Repository·Domain 분리는 미션 수행 기능에 적용했습니다. 인증·보상·추천의 핵심 규칙은 Firebase에 의존하지 않는 순수 Kotlin으로 구현합니다.
 
+세부 구성도는 [`docs/diagrams/`](docs/diagrams)에 Mermaid 원본과 SVG·PNG로 있습니다: [시스템 구성](docs/diagrams/01-system-architecture.svg) · [서비스 흐름](docs/diagrams/02-service-flow.svg) · [사진 인증](docs/diagrams/03-photo-verification.svg) · [오프라인 ML 파이프라인](docs/diagrams/04-ml-offline-pipeline.svg) · [추천](docs/diagrams/05-recommender.svg) · [미션 제안](docs/diagrams/06-mission-proposal.svg)
+
+### 기술 선택 이유
+
+| 선택 | 이유 |
+| --- | --- |
+| Jetpack Compose | 사용자·관리자 화면을 선언형 UI와 공통 컴포넌트로 일관되게 구성 |
+| Firebase Auth · Firestore | 별도 서버 없이 인증·실시간 데이터·보안 규칙을 제공하고, 트랜잭션으로 보상 중복 지급을 막을 수 있음 |
+| Supabase Storage | 무료 범위에서 공개 이미지 URL을 바로 제공해 인증 사진·대표 이미지 저장에 적합 |
+| 네이버 지도 SDK | 국내 지도 데이터와 한국어 지명 정확도 |
+| 온디바이스 추론 (ONNX Runtime) | 사진을 서버로 보내기 전에 판정해 개인정보 노출과 서버 비용을 줄이고, 오프라인에서도 동작 |
+| MobileViT-small | 모바일용 경량 ViT(약 5.6M 파라미터)로 정확도와 크기의 균형. 앱에 20MB ONNX로 포함 |
+| CLIP ViT-B/32 | 한 임베딩으로 대표 이미지 비교·미션 문구 일치도·선형 분류기 보정을 모두 처리. int8 양자화 후 첫 사용 시 다운로드 |
+| 로지스틱 회귀 re-ranker | 데이터가 적은 상황에서 과적합이 적고, 계수를 JSON으로 내보내 순수 Kotlin으로 추론 가능 |
+
 ## AI 설계 및 평가
 
 ### 모델 학습과 배포
@@ -128,33 +172,52 @@ ViewModel·Repository·Domain 분리는 미션 수행 기능에 적용했습니�
 | --- | --- | --- |
 | 데이터 구축 | 투어·맛집·체험·쇼핑·무효의 5개 클래스, 총 6,063장 | 합성 사용자·미션 완료 로그 |
 | 모델 학습 | MobileViT-small 파인튜닝 | 로지스틱 회귀 기반 re-ranker 학습 |
-| 변환·저장 | ONNX 모델로 변환 | 모델 계수를 JSON으로 저장 |
+| 변환·저장 | ONNX 변환 (CLIP은 int8 양자화, 선형 분류기는 JSON) | 모델 계수를 JSON으로 저장 |
 | 앱 적용 | ONNX Runtime으로 기기 내 사진 분석 | 규칙 점수와 모델 예측을 결합해 추천 |
 
 ### 온디바이스 사진 인증
 
-**사진 촬영 → 클래스 분류 → 참조 이미지 비교 → 최종 판정**
+**사진 촬영 → 무효 사진 차단 → 카테고리 분류 → 미션 대상 일치 확인 → 최종 판정**
 
-| 과정 | 처리 내용 |
-| --- | --- |
-| 사진 촬영 | 미션 장소에서 앱 카메라로 인증 사진 촬영 |
-| MobileViT 분류 | 촬영 사진의 카테고리와 무효 사진 여부 분석 |
-| CLIP 비교 | 미션 대표 이미지와 촬영본의 임베딩 코사인 유사도 계산 |
-| 최종 판정 | 분류 결과와 유사도를 반영해 통과·관리자 검수·재촬영으로 연결 |
+![사진 인증 판정 흐름](docs/diagrams/03-photo-verification.png)
 
-판정별 저장·보상 처리는 [사진 인증과 완료 처리](#사진-인증과-완료-처리)를 참고하세요.
+| 신호 | 모델 | 역할 |
+| --- | --- | --- |
+| 무효 점수 | MobileViT-small (파인튜닝) | 셀카·스크린샷·화면 재촬영 등 무효 사진을 가장 먼저 차단 |
+| 카테고리 점수 | MobileViT + CLIP 선형 분류기 | 투어·맛집·체험·쇼핑 중 미션 카테고리와 맞는지 판단 |
+| 대표 이미지 유사도 | CLIP 이미지 임베딩 | 관리자가 등록한 미션 대표 이미지와 촬영본의 코사인 유사도 |
+| 미션 문구 일치도 | CLIP 텍스트 임베딩 | 미션의 시각 묘사 문구(`photoPromptsEn`)가 다른 미션 문구들보다 촬영본에 잘 맞는지 |
 
-`apple/mobilevit-small`을 여행 미션 사진으로 파인튜닝해 **투어·맛집·체험·쇼핑·무효**의 5개 클래스를 분류합니다. 모델은 ONNX 형식으로 앱에 포함하며, 촬영본을 기기에서 분석합니다. 참조 사진과 촬영본의 CLIP 임베딩 유사도를 보조 신호로 사용해 미션 대상과의 일치 여부를 판정에 반영합니다.
+무효 게이트를 보조 신호보다 먼저 두어 스푸핑 사진이 유사도로 구제되지 않게 했습니다. 카테고리가 애매해도 대상이 확실히 일치하면 통과로 올리고, 카테고리가 확실해도 대상이 다르다고 의심되면 관리자 검수로 내립니다. 임계값은 [`PhotoVerificationConfig`](app/src/main/java/smu/ai/graduation_project/domain/PhotoVerificationConfig.kt)에 근거와 함께 모아 두었고, 판정별 저장·보상 처리는 [사진 인증과 완료 처리](#사진-인증과-완료-처리)를 참고하세요.
 
-| 항목 | 결과 |
+**카테고리 분류** (test 893장)
+
+| 모델 | Macro-F1 [95% CI] | 무효 Recall | 정상 오거절 |
+| --- | ---: | ---: | ---: |
+| CLIP ViT-B/32 zero-shot | 0.627 [0.595, 0.660] | 0.667 | 0.327 |
+| MobileViT-small 파인튜닝 | 0.811 [0.784, 0.838] | 0.932 | 0.146 |
+| **MobileViT + CLIP 선형 분류기 (앱)** | **0.828** [0.801, 0.853] | **0.932** | **0.108** |
+
+정상 사진 오거절 감소는 통계적으로 유의했습니다(McNemar p = 0.006).
+
+**판정 파이프라인 구성 비교** (가상 미션 51개, 정상 533 · 같은 카테고리 다른 대상 510 · 무효 309건)
+
+| 구성 | 정상 PASS ↑ | 정상 오거절 ↓ | 다른 대상 오수락 ↓ | 무효 오수락 ↓ |
+| --- | ---: | ---: | ---: | ---: |
+| 분류만 | 0.711 | 0.107 | 0.755 | 0.006 |
+| + 대표 이미지 유사도 | 0.246 | 0.023 | 0.016 | 0.000 |
+| + 미션 문구 일치도 | 0.822 | 0.036 | 0.076 | 0.000 |
+| **전체 결합 (앱)** | **0.822** | **0.013** | **0.084** | **0.000** |
+
+**테스트 기기 추론 속도** (2017년 출시, Android 9 · 1080×1440 사진, 중앙값)
+
+| 단계 | 시간 |
 | --- | ---: |
-| 데이터셋 규모 | 6,063장 |
-| 테스트 정확도 | 0.840 |
-| 테스트 Macro-F1 | 0.809 |
-| CLIP 제로샷 비교 기준 Macro-F1 | 0.627 |
-| 무효 사진 Recall · 임계값 0.55 | 0.932 |
+| MobileViT 분류 | 223 ms |
+| CLIP 임베딩 | 214 ms |
+| 전체 판정 (`PhotoGate.decide`) | 402 ms |
 
-위 수치는 공개 데이터와 합성 무효 이미지로 구성한 테스트셋의 평가 결과입니다. 실제 여행 사진의 성능을 보장하는 수치는 아니며, 체험 클래스의 F1은 0.632로 다른 클래스보다 낮습니다. 참조 이미지 유사도 임계값은 공개 장면 데이터 기반의 잠정값입니다.
+데이터셋은 공개 장면 데이터와 합성 무효 이미지로 구성한 6,063장이며, 수치는 실제 여행 현장 사진의 성능을 보장하지 않습니다. 대표 이미지·문구 임계값은 표본이 작은 잠정값으로, 실사용 로그로 재보정이 필요합니다. 전체 실험과 재현 방법은 [논문 원고](docs/report.md)와 [`ml/eval`](ml/eval/README.md)에 정리했습니다.
 
 ### 개인화 미션 추천
 
@@ -191,13 +254,15 @@ app/src/main/
 │   ├── model/              # 데이터 모델
 │   ├── navigation/         # 화면 경로
 │   └── ui/                 # 사용자·관리자 화면과 테마
-├── assets/                 # ONNX 사진 분류 모델·추천 모델
+├── assets/                 # ONNX 사진 분류 모델·CLIP 선형 분류기·추천 모델
 └── res/                    # 한국어·영어·일본어 리소스
 app/src/test/               # Kotlin 단위 테스트
+app/src/androidTest/        # 실기기 ONNX 추론·속도 측정 테스트
 firestore-tests/            # Firestore 보안 규칙 테스트
-ml/                         # 사진 모델 학습·평가·변환
+ml/                         # 사진 모델 데이터 구축·학습·ONNX 변환
+├── eval/                   # 논문 실험 재현 스크립트와 결과 JSON
 └── reco/                   # 추천 모델 학습·평가
-docs/                       # 실행 화면 및 설계·실험 문서
+docs/                       # 논문 원고, 구성도, 실행 화면, 포스터
 firestore.rules             # 데이터 접근 규칙
 ```
 
@@ -219,7 +284,7 @@ cd seoul-quest
 ```
 
 1. Android Studio에서 프로젝트를 엽니다.
-2. Firebase에 패키지 `smu.ai.graduation_project`를 등록하고, 발급받은 `google-services.json`을 `app/`에 배치합니다.
+2. 저장소의 `app/google-services.json`은 개발에 사용한 Firebase 프로젝트 설정입니다. 다른 Firebase 프로젝트를 쓰려면 패키지 `smu.ai.graduation_project`를 등록하고 발급받은 파일로 교체합니다.
 3. Supabase Storage에 공개 버킷 `mission-photos`를 생성하고 앱에서 사용할 업로드 정책을 설정합니다. 프로젝트에서 사용하는 기본 INSERT 정책은 다음과 같습니다.
 
    ```sql
@@ -253,13 +318,16 @@ cd seoul-quest
    ./gradlew installDebug
    ```
 
-위치 인증과 촬영 시 위치·카메라 권한을 허용해야 합니다. 사진 분류 모델을 불러오지 못하면 관리자 검수로 연결하며, CLIP 모델은 첫 사용 시 Hugging Face Hub에서 다운로드 후 기기에 캐시합니다.
+`local.properties`의 키는 저장소에 포함하지 않습니다. 값이 없어도 빌드와 테스트는 되지만, 지도 표시와 사진 업로드는 동작하지 않습니다. 위치 인증과 촬영 시 위치·카메라 권한을 허용해야 합니다. 사진 분류 모델을 불러오지 못하면 관리자 검수로 연결하며, CLIP 모델은 첫 사용 시 Hugging Face Hub에서 다운로드 후 기기에 캐시합니다.
 
 ### 테스트
 
 ```bash
-./gradlew :app:testDebugUnitTest
+./gradlew :app:testDebugUnitTest                  # 도메인 규칙 단위 테스트 (129개)
+cd firestore-tests && npm install && npm test     # Firestore 보안 규칙 테스트 (Emulator)
 ```
+
+실기기 추론 속도·메모리 측정은 [측정 가이드](docs/benchmark-guide.md)를 참고하세요.
 
 도메인 규칙 단위 테스트와 Firestore Emulator 테스트로 인증·보상·접근 권한을 검증합니다. 사용자 미션 제안·검수·좋아요·찜 기능은 빌드와 자동 테스트 기준으로 확인했으며, 전체 사용자 흐름의 실기기 검증 범위와는 구분합니다.
 
@@ -269,9 +337,19 @@ cd seoul-quest
 
 ## 관련 문서
 
-- [설계 및 실험 기록](docs/report.md)
+- [졸업 논문 원고](docs/report.md) · [Word 버전](docs/report.docx) · [프로젝트 포스터](docs/project-poster.pdf)
+- [개발 기록](docs/dev-notes.md)
+- [실험 재현 방법](ml/eval/README.md)
+- [실기기 속도 측정 가이드](docs/benchmark-guide.md)
 - [사진 인증 모델과 학습 파이프라인](ml/README.md)
 - [추천 모델과 평가 방법](ml/reco/README.md)
 - [사진 인증 평가 설정](ml/thresholds.json)
 
+## 팀
 
+| 이름 | 소속 |
+| --- | --- |
+| 강규린 | 숙명여자대학교 인공지능공학부 |
+| 김가연 | 숙명여자대학교 인공지능공학부 |
+
+지도교수 김철연 · 팀 SOOK-GO

@@ -1,0 +1,13 @@
+%%{init: {'themeVariables': {'fontSize': '22px'}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 30}}}%%
+flowchart TB
+  P["촬영 사진"] --> M["MobileViT 분류<br/>+ CLIP 선형 분류기"]
+  P --> C["CLIP 이미지 임베딩"]
+  M --> G1{"무효 ≥ 0.55?"}
+  G1 -- 예 --> R1["반려"]
+  G1 -- 아니오 --> B["1차 판정<br/>카테고리 점수 기준"]
+  C --> S["참조 이미지 유사도<br/>미션 문장 일치도"]
+  B --> A{"보조 신호로<br/>한 단계 조정"}
+  S --> A
+  A --> O1["통과"]
+  A --> O2["관리자 검수"]
+  A --> O3["반려"]

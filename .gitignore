@@ -34,7 +34,6 @@ __pycache__/
 firebase-debug.log
 **/serviceAccount*.json
 **/*-firebase-adminsdk-*.json
-.claude/settings.local.json
 /ml/*.onnx
 /ml/*.data
 /ml/**/*.onnx.data
