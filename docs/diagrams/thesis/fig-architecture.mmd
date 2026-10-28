@@ -1,0 +1,12 @@
+%%{init: {'themeVariables': {'fontSize': '22px'}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 35}}}%%
+flowchart TB
+  subgraph APP[" "]
+    direction TB
+    UI["앱 화면 · ViewModel"] --> REPO["Repository<br/>(데이터 연동)"]
+    REPO --> DOM["핵심 규칙<br/>위치·사진 판정 · 보상 · 추천"]
+    REPO --> AI["온디바이스 AI<br/>MobileViT · CLIP"]
+  end
+  REPO <--> FB[("Firebase<br/>Auth · Firestore")]
+  REPO --> SB[("Supabase<br/>Storage")]
+  AI <-- "모델 다운로드" --> HF[("Hugging Face<br/>Hub")]
+  UI --> NM["네이버 지도"]
